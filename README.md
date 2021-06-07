@@ -8,7 +8,7 @@ Zig programming language.
 ### Sharp Edges
 
 To make enqueuing and dequeuing fast, the ring size must be a **power of two**
-like 64, 256, 1024, 4096.
+like 8, 16, 32, 64, 256, 1024, 4096.
 
 ### Example
 
