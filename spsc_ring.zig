@@ -4,16 +4,9 @@ const Atomic = std.atomic.Atomic;
 const AtomicOrder = std.builtin.AtomicOrder;
 
 pub fn Ring(comptime T: type) type {
-    // FIXME: check this is 64 bytes on all platforms
-    const cacheLineSize = 64;
-
     return struct {
-        consumerHead: Atomic(usize),
-        pad1: [cacheLineSize - @sizeOf(usize)]u8 = undefined,
-
-        producerTail: Atomic(usize),
-        pad2: [cacheLineSize - @sizeOf(usize)]u8 = undefined,
-
+        consumerHead: Atomic(usize) align(64),
+        producerTail: Atomic(usize) align(64),
         buffer: [*]T,
         size: usize,
         mask: usize,
@@ -32,28 +25,27 @@ pub fn Ring(comptime T: type) type {
 
         pub fn enqueue(self: *Self, value: T) bool {
             const consumer = self.consumerHead.load(AtomicOrder.Acquire);
-            const producer = self.producerTail.load(AtomicOrder.Acquire);
-            const delta = producer + 1;
+            const producer = self.producerTail.load(AtomicOrder.Unordered);
+            const nextProducer = producer + 1;
 
-            if (delta & self.mask == consumer & self.mask)
-                return false;
+            if (nextProducer & self.mask == consumer & self.mask) return false;
 
             self.buffer[producer & self.mask] = value;
-            atomic.fence(AtomicOrder.Release);
 
-            self.producerTail.store(delta, AtomicOrder.Release);
+            atomic.fence(AtomicOrder.Release);
+            self.producerTail.store(nextProducer, AtomicOrder.Release);
 
             return true;
         }
 
         pub fn dequeue(self: *Self) ?T {
-            const consumer = self.consumerHead.load(AtomicOrder.Acquire);
             const producer = self.producerTail.load(AtomicOrder.Acquire);
+            const consumer = self.consumerHead.load(AtomicOrder.Unordered);
 
-            if (consumer == producer)
-                return null;
+            if (consumer == producer) return null;
 
             atomic.fence(AtomicOrder.Acquire);
+
             const value = self.buffer[consumer & self.mask];
 
             atomic.fence(AtomicOrder.Release);
@@ -63,8 +55,8 @@ pub fn Ring(comptime T: type) type {
         }
 
         pub fn length(self: *Self) usize {
-            const consumer = self.consumerHead.load(AtomicOrder.Acquire);
-            const producer = self.producerTail.load(AtomicOrder.Acquire);
+            const consumer = self.consumerHead.load(AtomicOrder.Unordered);
+            const producer = self.producerTail.load(AtomicOrder.Unordered);
 
             return (producer - consumer) & self.mask;
         }
@@ -85,6 +77,7 @@ test "enqueue" {
     try expect(buffer[0] == 2);
     try expect(buffer[1] == 3);
     try expect(buffer[2] == 5);
+
     try expect(buffer[3] == 0);
 }
 
@@ -99,6 +92,8 @@ test "dequeue" {
     try expect(ring.dequeue().? == 2);
     try expect(ring.dequeue().? == 3);
     try expect(ring.dequeue().? == 5);
+
+    try expect(ring.dequeue() == null);
 }
 
 test "length" {
@@ -115,9 +110,6 @@ test "length" {
 
     _ = ring.dequeue();
     _ = ring.dequeue();
-
-    try expect(ring.length() == 1);
-
     _ = ring.dequeue();
 
     try expect(ring.length() == 0);
