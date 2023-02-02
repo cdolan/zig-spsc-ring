@@ -4,13 +4,11 @@ Fast single-producer single-consumer wait-free ring buffer for Zig.
 
 ## Usage
 
-### Usage
-
 For efficient enqueuing and dequeuing, it is recommended that the ring size be
 a power of two (i.e., 2^N), such as 8, 16, 32, 64, 256, 1024, 4096, etc...
 If the size is not a power of two, a debug assertion will fail.
 
-### Example
+## Example
 
 ```zig
 const std = @import("std");
