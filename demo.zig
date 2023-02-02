@@ -1,18 +1,3 @@
-# zig-spsc-ring
-
-Fast single-producer single-consumer wait-free ring buffer for Zig.
-
-## Usage
-
-### Usage
-
-For efficient enqueuing and dequeuing, it is recommended that the ring size be
-a power of two (i.e., 2^N), such as 8, 16, 32, 64, 256, 1024, 4096, etc...
-If the size is not a power of two, a debug assertion will fail.
-
-### Example
-
-```zig
 const std = @import("std");
 const Ring = @import("spsc_ring.zig").Ring;
 
@@ -27,7 +12,7 @@ pub fn main() !void {
 }
 
 fn producer(ring: *Ring(u64)) void {
-    _ = ring.enqueue(42); // true - success. false - full buffer.
+    _ = ring.enqueue(42);
 }
 
 fn consumer(ring: *Ring(u64)) !void {
@@ -43,15 +28,3 @@ fn consumer(ring: *Ring(u64)) !void {
         }
     }
 }
-```
-
-## Zig
-
-Tested on Zig 0.11.0-dev.1430+ce6de2df8
-
-- https://ziglang.org/
-- https://github.com/ziglang/zig
-- https://github.com/ziglang/zig/wiki/Community
-
-## License
-MIT
